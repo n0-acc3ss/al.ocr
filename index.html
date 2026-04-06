@@ -3,475 +3,331 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Image Autocrop</title>
+  <title>Autocrop</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: system-ui, sans-serif;
-      background: #0f0f0f;
-      color: #e0e0e0;
+      background: #f5f5f5;
+      color: #111;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem 1rem;
-      gap: 2rem;
+      padding: 3rem 1rem;
+      gap: 1.5rem;
     }
 
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
+    h1 { font-size: 1.25rem; font-weight: 600; }
+    p.sub { font-size: 0.85rem; color: #888; }
 
     #drop-zone {
       width: 100%;
-      max-width: 640px;
-      border: 2px dashed #444;
-      border-radius: 12px;
-      padding: 3rem 2rem;
+      max-width: 560px;
+      border: 1.5px dashed #ccc;
+      border-radius: 8px;
+      padding: 2.5rem 1rem;
       text-align: center;
       cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
+      color: #aaa;
+      font-size: 0.9rem;
+      transition: border-color 0.15s, background 0.15s;
     }
-
-    #drop-zone.drag-over {
-      border-color: #6c8fff;
-      background: #1a1f33;
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #888;
+      background: #fff;
+      color: #555;
     }
-
-    #drop-zone p {
-      color: #888;
-      font-size: 0.95rem;
-      margin-top: 0.5rem;
-    }
-
-    #drop-zone span.icon { font-size: 2.5rem; }
-
     #file-input { display: none; }
 
     #options {
       display: flex;
-      align-items: center;
       gap: 1.5rem;
       flex-wrap: wrap;
       justify-content: center;
+      font-size: 0.85rem;
+      color: #555;
     }
+    #options label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+    #options input[type=number] {
+      width: 52px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 0.2rem 0.4rem;
+      font-size: 0.85rem;
+    }
+    #options input[type=checkbox] { accent-color: #333; }
 
-    label { font-size: 0.9rem; color: #aaa; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-    input[type=number] {
-      width: 60px;
-      background: #1e1e1e;
-      border: 1px solid #333;
-      border-radius: 6px;
-      color: #e0e0e0;
-      padding: 0.3rem 0.5rem;
-      font-size: 0.9rem;
-    }
-    input[type=checkbox] { accent-color: #6c8fff; }
+    #status { font-size: 0.8rem; color: #aaa; min-height: 1em; }
 
     #results {
       width: 100%;
-      max-width: 900px;
+      max-width: 760px;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1rem;
     }
 
-    .result-card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
+    .card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
       overflow: hidden;
     }
 
-    .result-header {
+    .card-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem 1rem;
-      background: #222;
-      border-bottom: 1px solid #2a2a2a;
-      gap: 1rem;
+      gap: 0.75rem;
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid #f0f0f0;
       flex-wrap: wrap;
     }
+    .card-header .name  { font-size: 0.82rem; color: #555; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-header .dims  { font-size: 0.78rem; color: #bbb; white-space: nowrap; }
+    .card-header .tag   { font-size: 0.72rem; padding: 0.15rem 0.45rem; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+    .tag-stripped { color: #d44; border-color: #f5c0c0; background: #fff5f5; }
+    .tag-kept     { color: #4a4; border-color: #c0e0c0; background: #f5fff5; }
+    .tag-warn     { color: #a80; border-color: #e8d8a0; background: #fffbf0; }
 
-    .result-header .filename {
-      font-size: 0.85rem;
-      color: #bbb;
-      word-break: break-all;
-    }
-
-    .result-header .meta {
-      font-size: 0.78rem;
-      color: #666;
-      white-space: nowrap;
-    }
-
-    .badge {
-      font-size: 0.72rem;
-      padding: 0.2rem 0.5rem;
+    .btn-dl {
+      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border: 1px solid #ddd;
       border-radius: 4px;
-      white-space: nowrap;
-    }
-    .badge-stripped  { background: #2a1f1f; color: #ff8a80; border: 1px solid #4a2a2a; }
-    .badge-kept      { background: #1f2a1f; color: #80e680; border: 1px solid #2a4a2a; }
-    .badge-warn      { background: #2a2a1a; color: #ffe080; border: 1px solid #4a4a1a; }
-
-    .result-header .btn-download {
-      background: #6c8fff;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 0.4rem 0.9rem;
-      font-size: 0.85rem;
+      background: #fff;
       cursor: pointer;
       white-space: nowrap;
-      transition: background 0.15s;
+      color: #333;
+      transition: background 0.1s;
     }
-    .result-header .btn-download:hover { background: #5a7aff; }
+    .btn-dl:hover { background: #f0f0f0; }
 
-    .preview-row {
+    .previews {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: #2a2a2a;
     }
-
-    .preview-box {
-      background: #111;
-      padding: 1rem;
+    .preview {
+      padding: 0.75rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
+      background: #fafafa;
     }
-
-    .preview-box span {
-      font-size: 0.75rem;
-      color: #555;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .preview-box img {
+    .preview + .preview { border-left: 1px solid #f0f0f0; }
+    .preview .label { font-size: 0.7rem; color: #bbb; text-transform: uppercase; letter-spacing: 0.04em; }
+    .preview img {
       max-width: 100%;
-      max-height: 260px;
+      max-height: 220px;
       object-fit: contain;
+      border-radius: 3px;
       background-image:
-        linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
-        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
-        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
-      background-size: 16px 16px;
-      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-      border-radius: 4px;
+        linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
+        linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e8e8e8 75%),
+        linear-gradient(-45deg, transparent 75%, #e8e8e8 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
     }
 
-    .error-msg {
-      color: #ff6b6b;
-      font-size: 0.85rem;
-      padding: 1rem;
-    }
-
-    #status {
-      font-size: 0.85rem;
-      color: #666;
-      min-height: 1.2em;
-    }
+    .error { font-size: 0.82rem; color: #d44; padding: 0.75rem 0.9rem; }
   </style>
 </head>
 <body>
-  <h1>Image Autocrop</h1>
-  <p style="color:#666;font-size:0.9rem;text-align:center">Crops PNG &amp; WebP images to their non-transparent content bounds</p>
+  <h1>Autocrop</h1>
+  <p class="sub">Crops PNG &amp; WebP to transparent content bounds</p>
 
   <div id="drop-zone">
-    <span class="icon">🖼️</span>
-    <p>Drop PNG or WebP files here, or click to browse</p>
+    Drop PNG / WebP files here, or click to browse
     <input type="file" id="file-input" accept=".png,.webp,image/png,image/webp" multiple />
   </div>
 
   <div id="options">
-    <label>
-      <input type="checkbox" id="opt-padding" />
-      Add padding (px)
-      <input type="number" id="padding-val" value="0" min="0" max="500" />
-    </label>
-    <label>
-      <input type="checkbox" id="opt-strip-meta" checked />
-      Strip metadata
-    </label>
+    <label><input type="checkbox" id="opt-padding" /> Padding (px) <input type="number" id="padding-val" value="0" min="0" max="500" /></label>
+    <label><input type="checkbox" id="opt-strip-meta" checked /> Strip metadata</label>
   </div>
 
   <div id="status"></div>
   <div id="results"></div>
-
   <canvas id="work-canvas" style="display:none"></canvas>
 
   <script>
     const dropZone   = document.getElementById('drop-zone');
     const fileInput  = document.getElementById('file-input');
-    const results    = document.getElementById('results');
-    const status     = document.getElementById('status');
+    const resultsEl  = document.getElementById('results');
+    const statusEl   = document.getElementById('status');
     const workCanvas = document.getElementById('work-canvas');
     const ctx        = workCanvas.getContext('2d', { willReadFrequently: true });
 
-    // Session-level counter for filenames; assigned synchronously before any await
     let fileCounter = 1;
 
-    // --- drag & drop ---
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      handleFiles(e.dataTransfer.files);
-    });
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-    // --- main entry ---
-    function handleFiles(fileList) {
-      const files = [...fileList].filter(f => f.type === 'image/png' || f.type === 'image/webp');
-      if (!files.length) { status.textContent = 'No valid PNG or WebP files selected.'; return; }
-      status.textContent = `Processing ${files.length} file(s)…`;
+    function handleFiles(list) {
+      const files = [...list].filter(f => f.type === 'image/png' || f.type === 'image/webp');
+      if (!files.length) { statusEl.textContent = 'No PNG or WebP files found.'; return; }
+      statusEl.textContent = `Processing ${files.length} file(s)…`;
       Promise.all(files.map(processFile)).then(() => {
-        status.textContent = `Done. ${files.length} file(s) processed.`;
+        statusEl.textContent = `Done — ${files.length} file(s).`;
         fileInput.value = '';
       });
     }
 
     async function processFile(file) {
-      const idx = fileCounter++; // assign synchronously before any await
+      const idx = fileCounter++;
       const url = URL.createObjectURL(file);
-
       try {
-        const [img, origBuffer] = await Promise.all([
-          loadImage(url),
-          file.arrayBuffer(),
-        ]);
-
-        const pad       = getPadding();
-        const stripMeta = getStripMeta();
-        const bounds    = getContentBounds(img);
-        const card      = await createCard(file, img, bounds, pad, stripMeta, origBuffer, idx);
-        results.prepend(card);
+        const [img, origBuf] = await Promise.all([loadImage(url), file.arrayBuffer()]);
+        const card = await buildCard(file, img, origBuf, idx);
+        resultsEl.prepend(card);
       } catch (e) {
-        showError(file.name, e.message);
+        resultsEl.prepend(errorCard(file.name, e.message));
       } finally {
         URL.revokeObjectURL(url);
       }
     }
 
     function loadImage(src) {
-      return new Promise((resolve, reject) => {
+      return new Promise((res, rej) => {
         const img = new Image();
-        img.onload  = () => resolve(img);
-        img.onerror = () => reject(new Error('Failed to load image.'));
+        img.onload  = () => res(img);
+        img.onerror = () => rej(new Error('Failed to load image.'));
         img.src = src;
       });
     }
 
-    // --- filename: yyyy-MMM-dd_NN_cropped.ext ---
-    function getOutFilename(ext, idx) {
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mmm  = MONTHS[now.getMonth()];
-      const dd   = String(now.getDate()).padStart(2, '0');
-      const nn   = String(idx).padStart(2, '0');
-      return `${yyyy}-${mmm}-${dd}_${nn}_cropped.${ext}`;
+    function outFilename(ext, idx) {
+      const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const d = new Date();
+      return `${d.getFullYear()}-${M[d.getMonth()]}-${String(d.getDate()).padStart(2,'0')}_${String(idx).padStart(2,'0')}_cropped.${ext}`;
     }
 
-    // --- PNG metadata chunk types containing personal/device info ---
-    const PNG_META_TYPES = new Set(['tEXt', 'iTXt', 'zTXt', 'eXIf', 'tIME']);
+    // PNG metadata chunk re-injection
+    const META_CHUNKS = new Set(['tEXt','iTXt','zTXt','eXIf','tIME']);
 
-    function extractPNGMetaChunks(buffer) {
-      const view = new DataView(buffer);
-      const sig  = [137, 80, 78, 71, 13, 10, 26, 10];
-      for (let i = 0; i < 8; i++) {
-        if (view.getUint8(i) !== sig[i]) return null; // not a PNG
-      }
-
-      const chunks = [];
-      let offset = 8;
-
-      while (offset + 12 <= buffer.byteLength) {
-        const length = view.getUint32(offset);
-        if (offset + 12 + length > buffer.byteLength) break;
-
-        const type = String.fromCharCode(
-          view.getUint8(offset + 4), view.getUint8(offset + 5),
-          view.getUint8(offset + 6), view.getUint8(offset + 7)
-        );
-
-        if (PNG_META_TYPES.has(type)) {
-          // Slice a copy: length(4) + type(4) + data(length) + CRC(4)
-          chunks.push(new Uint8Array(buffer.slice(offset, offset + 12 + length)));
-        }
-
+    function extractPNGMeta(buf) {
+      const v = new DataView(buf);
+      const sig = [137,80,78,71,13,10,26,10];
+      for (let i = 0; i < 8; i++) if (v.getUint8(i) !== sig[i]) return null;
+      const out = []; let o = 8;
+      while (o + 12 <= buf.byteLength) {
+        const len  = v.getUint32(o);
+        if (o + 12 + len > buf.byteLength) break;
+        const type = String.fromCharCode(v.getUint8(o+4),v.getUint8(o+5),v.getUint8(o+6),v.getUint8(o+7));
+        if (META_CHUNKS.has(type)) out.push(new Uint8Array(buf.slice(o, o + 12 + len)));
         if (type === 'IEND') break;
-        offset += 12 + length;
+        o += 12 + len;
       }
-
-      return chunks;
+      return out;
     }
 
-    function injectPNGChunks(pngBuffer, metaChunks) {
-      if (!metaChunks || metaChunks.length === 0) return pngBuffer;
-
-      // PNG signature (8) + IHDR chunk (4 len + 4 type + 13 data + 4 CRC = 25) = 33 bytes
-      const INSERT_AT = 33;
-      const extra = metaChunks.reduce((s, c) => s + c.byteLength, 0);
-      const out   = new Uint8Array(pngBuffer.byteLength + extra);
-
-      out.set(new Uint8Array(pngBuffer, 0, INSERT_AT), 0);
-
-      let pos = INSERT_AT;
-      for (const chunk of metaChunks) { out.set(chunk, pos); pos += chunk.byteLength; }
-
-      out.set(new Uint8Array(pngBuffer, INSERT_AT), pos);
+    function injectPNGMeta(pngBuf, chunks) {
+      if (!chunks || !chunks.length) return pngBuf;
+      const AT = 33; // sig(8) + IHDR chunk(25)
+      const extra = chunks.reduce((s, c) => s + c.byteLength, 0);
+      const out = new Uint8Array(pngBuf.byteLength + extra);
+      out.set(new Uint8Array(pngBuf, 0, AT), 0);
+      let p = AT;
+      for (const c of chunks) { out.set(c, p); p += c.byteLength; }
+      out.set(new Uint8Array(pngBuf, AT), p);
       return out.buffer;
     }
 
-    // --- find bounding box of non-transparent pixels ---
-    function getContentBounds(img) {
+    function getBounds(img) {
       workCanvas.width  = img.naturalWidth;
       workCanvas.height = img.naturalHeight;
       ctx.clearRect(0, 0, workCanvas.width, workCanvas.height);
       ctx.drawImage(img, 0, 0);
-
       const { data, width, height } = ctx.getImageData(0, 0, workCanvas.width, workCanvas.height);
-
-      let top = height, bottom = 0, left = width, right = 0;
-
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+      let top = height, bot = 0, lft = width, rgt = 0;
+      for (let y = 0; y < height; y++)
+        for (let x = 0; x < width; x++)
           if (data[(y * width + x) * 4 + 3] > 0) {
-            if (y < top)    top    = y;
-            if (y > bottom) bottom = y;
-            if (x < left)   left   = x;
-            if (x > right)  right  = x;
+            if (y < top) top = y; if (y > bot) bot = y;
+            if (x < lft) lft = x; if (x > rgt) rgt = x;
           }
-        }
-      }
-
-      if (top > bottom || left > right) {
-        return { top: 0, left: 0, bottom: height - 1, right: width - 1 };
-      }
-      return { top, left, bottom, right };
+      return (top > bot || lft > rgt)
+        ? { top:0, lft:0, bot:height-1, rgt:width-1 }
+        : { top, lft, bot, rgt };
     }
 
-    // --- crop and optionally preserve metadata ---
-    async function renderCrop(img, bounds, pad, mimeType, stripMeta, origBuffer) {
-      const srcX = Math.max(0, bounds.left   - pad);
-      const srcY = Math.max(0, bounds.top    - pad);
-      const srcR = Math.min(img.naturalWidth  - 1, bounds.right  + pad);
-      const srcB = Math.min(img.naturalHeight - 1, bounds.bottom + pad);
-      const w    = srcR - srcX + 1;
-      const h    = srcB - srcY + 1;
+    async function crop(img, bounds, pad, mime, strip, origBuf) {
+      const x = Math.max(0, bounds.lft - pad),  y = Math.max(0, bounds.top - pad);
+      const r = Math.min(img.naturalWidth-1,  bounds.rgt + pad);
+      const b = Math.min(img.naturalHeight-1, bounds.bot + pad);
+      const w = r - x + 1, h = b - y + 1;
 
-      const out  = document.createElement('canvas');
-      out.width  = w;
-      out.height = h;
-      out.getContext('2d').drawImage(img, srcX, srcY, w, h, 0, 0, w, h);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
 
-      // canvas.toBlob strips all metadata by design
-      const blob   = await new Promise(resolve => out.toBlob(resolve, mimeType));
-      let   buffer = await blob.arrayBuffer();
+      const blob = await new Promise(res => c.toBlob(res, mime));
+      let buf    = await blob.arrayBuffer();
 
-      let metaKept = false;
-      let metaWarn = null; // warning message if preservation wasn't possible
-
-      if (!stripMeta) {
-        if (mimeType === 'image/png') {
-          const metaChunks = extractPNGMetaChunks(origBuffer);
-          if (metaChunks && metaChunks.length > 0) {
-            buffer   = injectPNGChunks(buffer, metaChunks);
-            metaKept = true;
-          }
+      let kept = false, warn = null;
+      if (!strip) {
+        if (mime === 'image/png') {
+          const meta = extractPNGMeta(origBuf);
+          if (meta && meta.length) { buf = injectPNGMeta(buf, meta); kept = true; }
         } else {
-          // WebP metadata is stored in a RIFF container; re-injection requires
-          // restructuring the file (VP8X + EXIF/XMP chunks). Not supported here.
-          metaWarn = 'WebP metadata cannot be preserved without a dedicated library.';
+          warn = 'WebP metadata cannot be preserved';
         }
       }
 
-      const outBlob  = new Blob([buffer], { type: mimeType });
-      const blobURL  = URL.createObjectURL(outBlob);
-      return { blobURL, outBlob, w, h, srcX, srcY, metaKept, metaWarn };
+      return { blobURL: URL.createObjectURL(new Blob([buf], { type: mime })), w, h, x, y, kept, warn };
     }
 
-    // --- UI card ---
-    async function createCard(file, img, bounds, pad, stripMeta, origBuffer, idx) {
-      const mimeType = file.type;
-      const ext      = mimeType === 'image/webp' ? 'webp' : 'png';
-      const origW    = img.naturalWidth;
-      const origH    = img.naturalHeight;
+    async function buildCard(file, img, origBuf, idx) {
+      const ext   = file.type === 'image/webp' ? 'webp' : 'png';
+      const strip = document.getElementById('opt-strip-meta').checked;
+      const pad   = document.getElementById('opt-padding').checked
+                    ? Math.max(0, parseInt(document.getElementById('padding-val').value, 10) || 0) : 0;
 
-      const { blobURL, outBlob, w, h, srcX, srcY, metaKept, metaWarn } =
-        await renderCrop(img, bounds, pad, mimeType, stripMeta, origBuffer);
-
-      const outName  = getOutFilename(ext, idx);
-
-      // Build metadata badge
-      let badgeHTML;
-      if (metaWarn) {
-        badgeHTML = `<span class="badge badge-warn" title="${metaWarn}">metadata: webp unsupported</span>`;
-      } else if (stripMeta) {
-        badgeHTML = `<span class="badge badge-stripped">metadata stripped</span>`;
-      } else if (metaKept) {
-        badgeHTML = `<span class="badge badge-kept">metadata kept</span>`;
-      } else {
-        badgeHTML = `<span class="badge badge-warn">no metadata found</span>`;
-      }
-
+      const { blobURL, w, h, x, y, kept, warn } = await crop(img, getBounds(img), pad, file.type, strip, origBuf);
+      const fname = outFilename(ext, idx);
       const origURL = URL.createObjectURL(file);
 
+      let tag = '';
+      if (warn)       tag = `<span class="tag tag-warn">${esc(warn)}</span>`;
+      else if (strip) tag = `<span class="tag tag-stripped">metadata stripped</span>`;
+      else if (kept)  tag = `<span class="tag tag-kept">metadata kept</span>`;
+      else            tag = `<span class="tag tag-warn">no metadata found</span>`;
+
       const card = document.createElement('div');
-      card.className = 'result-card';
+      card.className = 'card';
       card.innerHTML = `
-        <div class="result-header">
-          <span class="filename">${escHtml(file.name)}</span>
-          <span class="meta">${origW}×${origH} &rarr; ${w}×${h} &nbsp;|&nbsp; offset (${srcX}, ${srcY})</span>
-          ${badgeHTML}
-          <button class="btn-download">Download</button>
+        <div class="card-header">
+          <span class="name" title="${esc(file.name)}">${esc(file.name)}</span>
+          <span class="dims">${img.naturalWidth}×${img.naturalHeight} → ${w}×${h}</span>
+          ${tag}
+          <button class="btn-dl">Download</button>
         </div>
-        <div class="preview-row">
-          <div class="preview-box"><span>Original</span><img src="${origURL}" /></div>
-          <div class="preview-box"><span>Cropped &mdash; ${outName}</span><img src="${blobURL}" /></div>
+        <div class="previews">
+          <div class="preview"><span class="label">Before</span><img src="${origURL}" /></div>
+          <div class="preview"><span class="label">After — ${esc(fname)}</span><img src="${blobURL}" /></div>
         </div>`;
 
-      card.querySelector('.btn-download').addEventListener('click', () => {
-        const a    = document.createElement('a');
-        a.href     = blobURL;
-        a.download = outName;
-        a.click();
+      card.querySelector('.btn-dl').addEventListener('click', () => {
+        Object.assign(document.createElement('a'), { href: blobURL, download: fname }).click();
       });
-
       return card;
     }
 
-    function showError(name, msg) {
-      const div = document.createElement('div');
-      div.className = 'result-card';
-      div.innerHTML = `<div class="result-header"><span class="filename">${escHtml(name)}</span></div>
-                       <p class="error-msg">Error: ${escHtml(msg)}</p>`;
-      results.prepend(div);
+    function errorCard(name, msg) {
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.innerHTML = `<div class="card-header"><span class="name">${esc(name)}</span></div><p class="error">${esc(msg)}</p>`;
+      return d;
     }
 
-    function getPadding() {
-      if (!document.getElementById('opt-padding').checked) return 0;
-      return Math.max(0, parseInt(document.getElementById('padding-val').value, 10) || 0);
-    }
-
-    function getStripMeta() {
-      return document.getElementById('opt-strip-meta').checked;
-    }
-
-    function escHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
   </script>
 </body>
