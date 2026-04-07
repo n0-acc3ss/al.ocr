@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Autocrop</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#111111" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: system-ui, sans-serif;
@@ -15,16 +17,15 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 3rem 1rem;
+      padding: 3rem 1rem 4rem;
       gap: 1.5rem;
     }
 
     h1 { font-size: 1.25rem; font-weight: 600; }
-    p.sub { font-size: 0.85rem; color: #888; }
+    .sub { font-size: 0.85rem; color: #888; }
 
     #drop-zone {
-      width: 100%;
-      max-width: 560px;
+      width: 100%; max-width: 560px;
       border: 1.5px dashed #ccc;
       border-radius: 8px;
       padding: 2.5rem 1rem;
@@ -34,95 +35,86 @@
       font-size: 0.9rem;
       transition: border-color 0.15s, background 0.15s;
     }
-    #drop-zone:hover, #drop-zone.drag-over {
-      border-color: #888;
-      background: #fff;
-      color: #555;
-    }
+    #drop-zone:hover, #drop-zone.over { border-color: #888; background: #fff; color: #555; }
     #file-input { display: none; }
 
     #options {
       display: flex;
-      gap: 1.5rem;
       flex-wrap: wrap;
+      gap: 0.75rem 1.5rem;
       justify-content: center;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: #555;
     }
-    #options label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-    #options input[type=number] {
-      width: 52px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 0.2rem 0.4rem;
-      font-size: 0.85rem;
-    }
-    #options input[type=checkbox] { accent-color: #333; }
-
-    #status { font-size: 0.8rem; color: #aaa; min-height: 1em; }
-
-    #results {
-      width: 100%;
-      max-width: 760px;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .card {
+    .opt { display: flex; align-items: center; gap: 0.4rem; }
+    input[type=checkbox] { accent-color: #333; cursor: pointer; }
+    input[type=number] {
+      width: 50px;
+      border: 1px solid #ddd; border-radius: 4px;
+      padding: 0.2rem 0.4rem; font-size: 0.82rem;
       background: #fff;
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
-      overflow: hidden;
     }
+    input[type=range] { width: 80px; accent-color: #555; cursor: pointer; vertical-align: middle; }
+    .opt-val { min-width: 2.5ch; color: #999; font-variant-numeric: tabular-nums; }
+
+    #bar {
+      width: 100%; max-width: 760px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; min-height: 1.5rem;
+    }
+    #status { font-size: 0.8rem; color: #aaa; }
+
+    #btn-zip {
+      font-size: 0.8rem;
+      padding: 0.3rem 0.8rem;
+      border: 1px solid #ddd; border-radius: 4px;
+      background: #fff; color: #333;
+      cursor: pointer;
+      display: none;
+      transition: background 0.1s;
+    }
+    #btn-zip:hover { background: #f0f0f0; }
+
+    #results { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 1rem; }
+
+    .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
 
     .card-header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6rem 0.9rem;
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.55rem 0.85rem;
       border-bottom: 1px solid #f0f0f0;
       flex-wrap: wrap;
     }
-    .card-header .name  { font-size: 0.82rem; color: #555; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .card-header .dims  { font-size: 0.78rem; color: #bbb; white-space: nowrap; }
-    .card-header .tag   { font-size: 0.72rem; padding: 0.15rem 0.45rem; border-radius: 3px; border: 1px solid; white-space: nowrap; }
-    .tag-stripped { color: #d44; border-color: #f5c0c0; background: #fff5f5; }
-    .tag-kept     { color: #4a4; border-color: #c0e0c0; background: #f5fff5; }
-    .tag-warn     { color: #a80; border-color: #e8d8a0; background: #fffbf0; }
+    .card-header .name {
+      font-size: 0.82rem; color: #555; flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .card-header .dims { font-size: 0.75rem; color: #bbb; white-space: nowrap; }
 
-    .btn-dl {
-      font-size: 0.8rem;
-      padding: 0.3rem 0.7rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      background: #fff;
-      cursor: pointer;
-      white-space: nowrap;
-      color: #333;
+    .tag {
+      font-size: 0.7rem; padding: 0.15rem 0.4rem;
+      border-radius: 3px; border: 1px solid; white-space: nowrap;
+    }
+    .tag-s { color: #d44; border-color: #f5c0c0; background: #fff5f5; }
+    .tag-k { color: #4a4; border-color: #c0e0c0; background: #f5fff5; }
+    .tag-w { color: #a80; border-color: #e8d8a0; background: #fffbf0; }
+
+    .btn-sm {
+      font-size: 0.78rem; padding: 0.25rem 0.6rem;
+      border: 1px solid #ddd; border-radius: 4px;
+      background: #fff; color: #333;
+      cursor: pointer; white-space: nowrap;
       transition: background 0.1s;
     }
-    .btn-dl:hover { background: #f0f0f0; }
+    .btn-sm:hover { background: #f0f0f0; }
 
-    .previews {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
-    .preview {
-      padding: 0.75rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.4rem;
-      background: #fafafa;
-    }
-    .preview + .preview { border-left: 1px solid #f0f0f0; }
-    .preview .label { font-size: 0.7rem; color: #bbb; text-transform: uppercase; letter-spacing: 0.04em; }
-    .preview img {
-      max-width: 100%;
-      max-height: 220px;
-      object-fit: contain;
-      border-radius: 3px;
+    /* ── Compare slider ── */
+    .compare {
+      position: relative; overflow: hidden;
+      height: 220px;
+      cursor: ew-resize;
+      user-select: none;
+      /* checkerboard */
       background-image:
         linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
         linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
@@ -131,13 +123,50 @@
       background-size: 12px 12px;
       background-position: 0 0, 0 6px, 6px -6px, -6px 0;
     }
+    .compare img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      max-height: none;
+    }
+    .cmp-before-clip {
+      position: absolute; inset: 0;
+      /* clip-path controlled via --pct custom property */
+      clip-path: inset(0 calc(100% - var(--pct, 50%)) 0 0);
+    }
+    .cmp-line {
+      position: absolute; top: 0; bottom: 0;
+      left: var(--pct, 50%);
+      width: 2px;
+      background: rgba(255,255,255,0.85);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .cmp-line::after {
+      content: '';
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+    }
+    .cmp-lbl {
+      position: absolute; bottom: 6px;
+      font-size: 0.65rem; color: rgba(255,255,255,0.8);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+    }
+    .cmp-lbl.lb { left: 8px; }
+    .cmp-lbl.la { right: 8px; }
 
-    .error { font-size: 0.82rem; color: #d44; padding: 0.75rem 0.9rem; }
+    .error { font-size: 0.82rem; color: #d44; padding: 0.75rem 0.85rem; }
   </style>
 </head>
 <body>
   <h1>Autocrop</h1>
-  <p class="sub">Crops PNG &amp; WebP to transparent content bounds</p>
+  <p class="sub">Crops PNG &amp; WebP to content bounds</p>
 
   <div id="drop-zone">
     Drop PNG / WebP files here, or click to browse
@@ -145,82 +174,170 @@
   </div>
 
   <div id="options">
-    <label><input type="checkbox" id="opt-padding" /> Padding (px) <input type="number" id="padding-val" value="0" min="0" max="500" /></label>
-    <label><input type="checkbox" id="opt-strip-meta" checked /> Strip metadata</label>
+    <div class="opt">
+      <label><input type="checkbox" id="opt-pad" /> Padding</label>
+      <input type="number" id="pad-val" value="0" min="0" max="500" />
+      <span>px</span>
+    </div>
+    <div class="opt">
+      <label><input type="checkbox" id="opt-meta" checked /> Strip metadata</label>
+    </div>
+    <div class="opt">
+      <label for="thresh">Alpha threshold</label>
+      <input type="range" id="thresh" min="0" max="127" value="0" />
+      <span class="opt-val" id="thresh-val">0</span>
+    </div>
+    <div class="opt">
+      <label for="quality">WebP quality</label>
+      <input type="range" id="quality" min="1" max="100" value="92" />
+      <span class="opt-val" id="quality-val">92</span>
+    </div>
   </div>
 
-  <div id="status"></div>
+  <div id="bar">
+    <span id="status"></span>
+    <button id="btn-zip">Download all as ZIP</button>
+  </div>
   <div id="results"></div>
   <canvas id="work-canvas" style="display:none"></canvas>
 
   <script>
-    const dropZone   = document.getElementById('drop-zone');
-    const fileInput  = document.getElementById('file-input');
-    const resultsEl  = document.getElementById('results');
-    const statusEl   = document.getElementById('status');
-    const workCanvas = document.getElementById('work-canvas');
-    const ctx        = workCanvas.getContext('2d', { willReadFrequently: true });
+    // ── PWA ──
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-    let fileCounter = 1;
+    // ── DOM ──
+    const dropZone  = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const resultsEl = document.getElementById('results');
+    const statusEl  = document.getElementById('status');
+    const btnZip    = document.getElementById('btn-zip');
+    const wCanvas   = document.getElementById('work-canvas');
+    const wCtx      = wCanvas.getContext('2d', { willReadFrequently: true });
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
-    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+    // ── State ──
+    let counter = 1;
+    const allResults = []; // { blobURL, fname }
 
-    function handleFiles(list) {
-      const files = [...list].filter(f => f.type === 'image/png' || f.type === 'image/webp');
-      if (!files.length) { statusEl.textContent = 'No PNG or WebP files found.'; return; }
-      statusEl.textContent = `Processing ${files.length} file(s)…`;
-      Promise.all(files.map(processFile)).then(() => {
-        statusEl.textContent = `Done — ${files.length} file(s).`;
-        fileInput.value = '';
-      });
-    }
+    // ── Options ──
+    const $  = id => document.getElementById(id);
+    const getPad     = () => $('opt-pad').checked ? Math.max(0, parseInt($('pad-val').value) || 0) : 0;
+    const getStrip   = () => $('opt-meta').checked;
+    const getThresh  = () => parseInt($('thresh').value);
+    const getQuality = () => parseInt($('quality').value) / 100;
 
-    async function processFile(file) {
-      const idx = fileCounter++;
-      const url = URL.createObjectURL(file);
-      try {
-        const [img, origBuf] = await Promise.all([loadImage(url), file.arrayBuffer()]);
-        const card = await buildCard(file, img, origBuf, idx);
-        resultsEl.prepend(card);
-      } catch (e) {
-        resultsEl.prepend(errorCard(file.name, e.message));
-      } finally {
-        URL.revokeObjectURL(url);
+    $('thresh').addEventListener('input',  () => $('thresh-val').textContent  = $('thresh').value);
+    $('quality').addEventListener('input', () => $('quality-val').textContent = $('quality').value);
+
+    // ── CRC-32 ──
+    const CRC_T = (() => {
+      const t = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        t[i] = c;
       }
+      return t;
+    })();
+    function crc32(data) {
+      let c = 0xFFFFFFFF;
+      for (let i = 0; i < data.length; i++) c = CRC_T[(c ^ data[i]) & 0xFF] ^ (c >>> 8);
+      return (c ^ 0xFFFFFFFF) >>> 0;
     }
 
-    function loadImage(src) {
-      return new Promise((res, rej) => {
-        const img = new Image();
-        img.onload  = () => res(img);
-        img.onerror = () => rej(new Error('Failed to load image.'));
-        img.src = src;
+    // ── ZIP builder (stored / no compression) ──
+    function buildZip(entries) {
+      const enc = new TextEncoder();
+      const locals = [], cdirs = [];
+      let offset = 0;
+
+      for (const { name, data } of entries) {
+        const nb  = enc.encode(name);
+        const crc = crc32(data);
+
+        const lh = new Uint8Array(30 + nb.length);
+        const lv = new DataView(lh.buffer);
+        lv.setUint32(0,  0x04034b50, true); // local file sig
+        lv.setUint16(4,  20,         true); // version needed
+        lv.setUint32(14, crc,        true); // crc-32
+        lv.setUint32(18, data.length,true); // compressed size
+        lv.setUint32(22, data.length,true); // uncompressed size
+        lv.setUint16(26, nb.length,  true); // filename length
+        lh.set(nb, 30);
+
+        const cd = new Uint8Array(46 + nb.length);
+        const cv = new DataView(cd.buffer);
+        cv.setUint32(0,  0x02014b50, true); // central dir sig
+        cv.setUint16(4,  20,         true); // version made by
+        cv.setUint16(6,  20,         true); // version needed
+        cv.setUint32(16, crc,        true); // crc-32
+        cv.setUint32(20, data.length,true); // compressed size
+        cv.setUint32(24, data.length,true); // uncompressed size
+        cv.setUint16(28, nb.length,  true); // filename length
+        cv.setUint32(42, offset,     true); // local header offset
+        cd.set(nb, 46);
+
+        locals.push(lh, data);
+        cdirs.push(cd);
+        offset += lh.length + data.length;
+      }
+
+      const cdSize = cdirs.reduce((s, c) => s + c.length, 0);
+      const eocd   = new Uint8Array(22);
+      const ev     = new DataView(eocd.buffer);
+      ev.setUint32(0,  0x06054b50,     true); // EOCD sig
+      ev.setUint16(8,  entries.length, true); // entries on disk
+      ev.setUint16(10, entries.length, true); // total entries
+      ev.setUint32(12, cdSize,         true); // central dir size
+      ev.setUint32(16, offset,         true); // central dir offset
+
+      return new Blob([...locals, ...cdirs, eocd], { type: 'application/zip' });
+    }
+
+    // ── Web Worker — pixel bounds detection ──
+    const WORKER_SRC = `
+self.onmessage = ({ data: { buf, width, height, threshold } }) => {
+  const d = new Uint8ClampedArray(buf);
+  let top = height, bot = -1, lft = width, rgt = -1;
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (d[(y * width + x) * 4 + 3] > threshold) {
+        if (y < top) top = y;
+        if (y > bot) bot = y;
+        if (x < lft) lft = x;
+        if (x > rgt) rgt = x;
+      }
+  self.postMessage(bot < 0
+    ? { top: 0, lft: 0, bot: height - 1, rgt: width - 1 }
+    : { top, lft, bot, rgt });
+};`;
+    const workerURL = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+
+    function getBounds(img, threshold) {
+      wCanvas.width  = img.naturalWidth;
+      wCanvas.height = img.naturalHeight;
+      wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
+      wCtx.drawImage(img, 0, 0);
+      const buf = wCtx.getImageData(0, 0, wCanvas.width, wCanvas.height).data.buffer.slice(0);
+      return new Promise(resolve => {
+        const w = new Worker(workerURL);
+        w.onmessage = e => { resolve(e.data); w.terminate(); };
+        w.postMessage({ buf, width: wCanvas.width, height: wCanvas.height, threshold }, [buf]);
       });
     }
 
-    function outFilename(ext, idx) {
-      const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const d = new Date();
-      return `${d.getFullYear()}-${M[d.getMonth()]}-${String(d.getDate()).padStart(2,'0')}_${String(idx).padStart(2,'0')}_cropped.${ext}`;
-    }
-
-    // PNG metadata chunk re-injection
-    const META_CHUNKS = new Set(['tEXt','iTXt','zTXt','eXIf','tIME']);
+    // ── PNG metadata extraction / injection ──
+    const META_TYPES = new Set(['tEXt', 'iTXt', 'zTXt', 'eXIf', 'tIME']);
 
     function extractPNGMeta(buf) {
       const v = new DataView(buf);
-      const sig = [137,80,78,71,13,10,26,10];
+      const sig = [137, 80, 78, 71, 13, 10, 26, 10];
       for (let i = 0; i < 8; i++) if (v.getUint8(i) !== sig[i]) return null;
       const out = []; let o = 8;
       while (o + 12 <= buf.byteLength) {
         const len  = v.getUint32(o);
         if (o + 12 + len > buf.byteLength) break;
-        const type = String.fromCharCode(v.getUint8(o+4),v.getUint8(o+5),v.getUint8(o+6),v.getUint8(o+7));
-        if (META_CHUNKS.has(type)) out.push(new Uint8Array(buf.slice(o, o + 12 + len)));
+        const type = String.fromCharCode(v.getUint8(o+4), v.getUint8(o+5), v.getUint8(o+6), v.getUint8(o+7));
+        if (META_TYPES.has(type)) out.push(new Uint8Array(buf.slice(o, o + 12 + len)));
         if (type === 'IEND') break;
         o += 12 + len;
       }
@@ -229,9 +346,9 @@
 
     function injectPNGMeta(pngBuf, chunks) {
       if (!chunks || !chunks.length) return pngBuf;
-      const AT = 33; // sig(8) + IHDR chunk(25)
+      const AT    = 33; // sig(8) + IHDR(25)
       const extra = chunks.reduce((s, c) => s + c.byteLength, 0);
-      const out = new Uint8Array(pngBuf.byteLength + extra);
+      const out   = new Uint8Array(pngBuf.byteLength + extra);
       out.set(new Uint8Array(pngBuf, 0, AT), 0);
       let p = AT;
       for (const c of chunks) { out.set(c, p); p += c.byteLength; }
@@ -239,36 +356,22 @@
       return out.buffer;
     }
 
-    function getBounds(img) {
-      workCanvas.width  = img.naturalWidth;
-      workCanvas.height = img.naturalHeight;
-      ctx.clearRect(0, 0, workCanvas.width, workCanvas.height);
-      ctx.drawImage(img, 0, 0);
-      const { data, width, height } = ctx.getImageData(0, 0, workCanvas.width, workCanvas.height);
-      let top = height, bot = 0, lft = width, rgt = 0;
-      for (let y = 0; y < height; y++)
-        for (let x = 0; x < width; x++)
-          if (data[(y * width + x) * 4 + 3] > 0) {
-            if (y < top) top = y; if (y > bot) bot = y;
-            if (x < lft) lft = x; if (x > rgt) rgt = x;
-          }
-      return (top > bot || lft > rgt)
-        ? { top:0, lft:0, bot:height-1, rgt:width-1 }
-        : { top, lft, bot, rgt };
-    }
-
-    async function crop(img, bounds, pad, mime, strip, origBuf) {
-      const x = Math.max(0, bounds.lft - pad),  y = Math.max(0, bounds.top - pad);
-      const r = Math.min(img.naturalWidth-1,  bounds.rgt + pad);
-      const b = Math.min(img.naturalHeight-1, bounds.bot + pad);
+    // ── Crop ──
+    async function doCrop(img, bounds, pad, mime, quality, strip, origBuf) {
+      const x = Math.max(0, bounds.lft - pad);
+      const y = Math.max(0, bounds.top - pad);
+      const r = Math.min(img.naturalWidth  - 1, bounds.rgt + pad);
+      const b = Math.min(img.naturalHeight - 1, bounds.bot + pad);
       const w = r - x + 1, h = b - y + 1;
 
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
 
-      const blob = await new Promise(res => c.toBlob(res, mime));
-      let buf    = await blob.arrayBuffer();
+      const blobArgs = mime === 'image/webp' ? [mime, quality] : [mime];
+      const blob = await new Promise(res => c.toBlob(res, ...blobArgs));
+      if (!blob) throw new Error('Canvas export failed for this format.');
+      let buf = await blob.arrayBuffer();
 
       let kept = false, warn = null;
       if (!strip) {
@@ -276,58 +379,166 @@
           const meta = extractPNGMeta(origBuf);
           if (meta && meta.length) { buf = injectPNGMeta(buf, meta); kept = true; }
         } else {
-          warn = 'WebP metadata cannot be preserved';
+          warn = 'WebP metadata not preservable';
         }
       }
 
-      return { blobURL: URL.createObjectURL(new Blob([buf], { type: mime })), w, h, x, y, kept, warn };
+      // PNG blob for clipboard (always lossless)
+      const pngBlob = mime === 'image/png'
+        ? new Blob([buf], { type: 'image/png' })
+        : await new Promise(res => c.toBlob(res, 'image/png'));
+
+      return { blobURL: URL.createObjectURL(new Blob([buf], { type: mime })), pngBlob, w, h, kept, warn };
     }
 
-    async function buildCard(file, img, origBuf, idx) {
-      const ext   = file.type === 'image/webp' ? 'webp' : 'png';
-      const strip = document.getElementById('opt-strip-meta').checked;
-      const pad   = document.getElementById('opt-padding').checked
-                    ? Math.max(0, parseInt(document.getElementById('padding-val').value, 10) || 0) : 0;
+    // ── Compare slider ──
+    function initCompare(wrap) {
+      function update(clientX) {
+        const r   = wrap.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(100, (clientX - r.left) / r.width * 100));
+        wrap.style.setProperty('--pct', pct + '%');
+      }
+      wrap.addEventListener('pointerdown', e => {
+        wrap.setPointerCapture(e.pointerId);
+        update(e.clientX);
+      });
+      wrap.addEventListener('pointermove', e => {
+        if (wrap.hasPointerCapture(e.pointerId)) update(e.clientX);
+      });
+    }
 
-      const { blobURL, w, h, x, y, kept, warn } = await crop(img, getBounds(img), pad, file.type, strip, origBuf);
-      const fname = outFilename(ext, idx);
+    // ── Filename ──
+    function outName(ext, idx) {
+      const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const d = new Date();
+      return `${d.getFullYear()}-${M[d.getMonth()]}-${String(d.getDate()).padStart(2,'0')}_${String(idx).padStart(2,'0')}_cropped.${ext}`;
+    }
+
+    // ── Card builder ──
+    async function buildCard(file, img, origBuf, idx) {
+      const ext    = file.type === 'image/webp' ? 'webp' : 'png';
+      const bounds = await getBounds(img, getThresh());
+      const { blobURL, pngBlob, w, h, kept, warn } =
+        await doCrop(img, bounds, getPad(), file.type, getQuality(), getStrip(), origBuf);
+
+      const fname   = outName(ext, idx);
       const origURL = URL.createObjectURL(file);
 
-      let tag = '';
-      if (warn)       tag = `<span class="tag tag-warn">${esc(warn)}</span>`;
-      else if (strip) tag = `<span class="tag tag-stripped">metadata stripped</span>`;
-      else if (kept)  tag = `<span class="tag tag-kept">metadata kept</span>`;
-      else            tag = `<span class="tag tag-warn">no metadata found</span>`;
+      allResults.push({ blobURL, fname });
+      btnZip.style.display = '';
+
+      const tag = warn      ? `<span class="tag tag-w">${esc(warn)}</span>`
+                : getStrip() ? `<span class="tag tag-s">metadata stripped</span>`
+                : kept        ? `<span class="tag tag-k">metadata kept</span>`
+                :               `<span class="tag tag-w">no metadata found</span>`;
 
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
         <div class="card-header">
           <span class="name" title="${esc(file.name)}">${esc(file.name)}</span>
-          <span class="dims">${img.naturalWidth}×${img.naturalHeight} → ${w}×${h}</span>
+          <span class="dims">${img.naturalWidth}\u00d7${img.naturalHeight} \u2192 ${w}\u00d7${h}</span>
           ${tag}
-          <button class="btn-dl">Download</button>
+          <button class="btn-sm btn-copy">Copy</button>
+          <button class="btn-sm btn-dl">Download</button>
         </div>
-        <div class="previews">
-          <div class="preview"><span class="label">Before</span><img src="${origURL}" /></div>
-          <div class="preview"><span class="label">After — ${esc(fname)}</span><img src="${blobURL}" /></div>
+        <div class="compare" title="Drag to compare">
+          <img class="img-after"  src="${blobURL}" />
+          <div class="cmp-before-clip"><img src="${origURL}" /></div>
+          <div class="cmp-line"></div>
+          <span class="cmp-lbl lb">Before</span>
+          <span class="cmp-lbl la">After</span>
         </div>`;
+
+      initCompare(card.querySelector('.compare'));
 
       card.querySelector('.btn-dl').addEventListener('click', () => {
         Object.assign(document.createElement('a'), { href: blobURL, download: fname }).click();
       });
+
+      card.querySelector('.btn-copy').addEventListener('click', async () => {
+        const btn = card.querySelector('.btn-copy');
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+          btn.textContent = 'Copied!';
+        } catch {
+          btn.textContent = 'Failed';
+        }
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      });
+
       return card;
     }
 
-    function errorCard(name, msg) {
+    // ── File processing ──
+    function handleFiles(list) {
+      const files = [...list].filter(f => f.type === 'image/png' || f.type === 'image/webp');
+      if (!files.length) { statusEl.textContent = 'No PNG or WebP files.'; return; }
+      statusEl.textContent = `Processing ${files.length} file(s)\u2026`;
+      Promise.all(files.map(processFile)).then(() => {
+        statusEl.textContent = `Done \u2014 ${allResults.length} file(s) ready.`;
+        fileInput.value = '';
+      });
+    }
+
+    async function processFile(file) {
+      const idx = counter++;
+      const url = URL.createObjectURL(file);
+      try {
+        const [img, origBuf] = await Promise.all([loadImg(url), file.arrayBuffer()]);
+        resultsEl.prepend(await buildCard(file, img, origBuf, idx));
+      } catch (e) {
+        resultsEl.prepend(errCard(file.name, e.message));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function loadImg(src) {
+      return new Promise((res, rej) => {
+        const img = new Image();
+        img.onload  = () => res(img);
+        img.onerror = () => rej(new Error('Failed to load image.'));
+        img.src = src;
+      });
+    }
+
+    // ── ZIP download ──
+    btnZip.addEventListener('click', async () => {
+      const orig = btnZip.textContent;
+      btnZip.textContent = 'Preparing\u2026';
+      const entries = await Promise.all(allResults.map(async r => ({
+        name: r.fname,
+        data: new Uint8Array(await fetch(r.blobURL).then(x => x.arrayBuffer()))
+      })));
+      const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const d = new Date();
+      const zipName = `autocrop_${d.getFullYear()}-${M[d.getMonth()]}-${String(d.getDate()).padStart(2,'0')}.zip`;
+      Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(buildZip(entries)), download: zipName
+      }).click();
+      btnZip.textContent = orig;
+    });
+
+    // ── Drag & drop / click ──
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('over');
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+    // ── Helpers ──
+    function errCard(name, msg) {
       const d = document.createElement('div');
       d.className = 'card';
       d.innerHTML = `<div class="card-header"><span class="name">${esc(name)}</span></div><p class="error">${esc(msg)}</p>`;
       return d;
     }
-
     function esc(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
   </script>
 </body>
